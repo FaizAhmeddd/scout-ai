@@ -1,0 +1,43 @@
+# Secrets - never commit. Only the *.env.example templates are tracked.
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+
+# Runtime data: uploads, results, caches (large, machine-specific)
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+backend/data/outputs/*
+!backend/data/outputs/.gitkeep
+backend/data/samples/
+backend/outputs/
+backend/.cache/
+*.db
+
+# Model weights - fetched by `uv run python scripts/download_models.py` (or by Ultralytics on first use)
+backend/data/models/*
+!backend/data/models/.gitkeep
+*.pt
+*.pth
+*.onnx
+*.ckpt
+
+# Local tooling
+.claude/settings.local.json
+graphify-out/cache/
+.DS_Store
+Thumbs.db

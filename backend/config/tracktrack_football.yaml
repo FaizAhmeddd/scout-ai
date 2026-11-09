@@ -1,0 +1,22 @@
+# TrackTrack (CVPR 2025) with appearance re-identification - alternative to BoT-SORT.
+# Thresholds lowered from the MOT17 defaults because broadcast players are small and detected at lower confidence.
+
+tracker_type: tracktrack
+track_high_thresh: 0.4
+track_low_thresh: 0.15
+new_track_thresh: 0.45
+track_buffer: 90
+match_thresh: 0.7
+lost_match_thr: 0.9          # relaxed rebind for still-lost tracks (long occlusions)
+iou_weight: 0.5
+reid_weight: 0.5
+conf_weight: 0.1
+angle_weight: 0.05
+penalty_p: 0.2
+penalty_q: 0.4
+reduce_step: 0.05
+tai_thr: 0.55
+min_track_len: 3
+gmc_method: sparseOptFlow
+with_reid: True
+model: yolo26s-reid.onnx

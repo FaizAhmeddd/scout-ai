@@ -1,0 +1,146 @@
+# Football analysis engine configuration.
+# Secrets (GEMINI_API_KEY) live in backend/.env — everything tunable lives here.
+
+paths:
+  output_root: outputs
+  cache_dir: .cache/stages
+  models_dir: data/models
+
+video:
+  frame_stride: 1            # process every Nth frame (2 = twice as fast, half the temporal resolution)
+  max_seconds: null          # cap the analysed duration (null = whole video)
+
+detector:                      # who is on the pitch: players, goalkeepers, referees and the ball
+  type: rfdetr               # rfdetr = football-trained RF-DETR detector + crop pose (best recall) | pose = YOLO26 pose tracker only
+  checkpoint: rfdetr-soccernet/checkpoint_best_regular.pth   # under models_dir (scripts/download_models.py)
+  resolution: 896            # long side of the detector input (multiple of 56). Trained at 560: higher finds smaller far-side players, costs GPU memory/time; 560 is the safest
+  threshold: 0.3             # minimum confidence for players / goalkeepers / referees
+  class_names: [ball, player, referee, goalkeeper]           # checkpoint class order
+  tracker: config/tracktrack_rfdetr.yaml                     # TrackTrack + ReID on the detector's boxes
+  ball_candidates: true      # add the detector's ball detections to the dedicated ball model's candidates
+  ball_threshold: 0.35
+  pose_crop_imgsz: 256       # each player crop is pose-estimated on its own (top-down), so small players get skeletons
+  pose_crop_margin: 0.15     # crop padding around the box (fraction of box size)
+  pose_batch_size: 32
+
+pose:
+  model: yolo26n-pose.pt     # Ultralytics YOLO26 nano pose (17 COCO keypoints), auto-downloaded
+  device: auto               # auto | cuda | cpu
+  half: true                 # fp16 on CUDA
+  imgsz: 3840                # broadcast players are ~80 px tall; nano pose needs ~2x upscale of 1080p (19-28 players/frame vs ~0 at 1280)
+  conf: 0.25
+  iou: 0.5
+  tracker: config/tracktrack_football.yaml   # TrackTrack + ReID: fewest ID switches in our benchmark (botsort_football / bytetrack_football also available)
+  min_keypoint_conf: 0.35
+  min_box_height_px: 18      # ignore crowd / tiny false positives
+
+ball:
+  model: football-ball-detection.pt   # Roboflow sports (MIT) football-trained ball detector
+  fallback_model: yolo26s.pt          # COCO "sports ball" if the football model is not downloaded
+  class_names: ["ball", "football", "sports ball"]
+  imgsz: 1280
+  conf: 0.15
+  max_jump_px_per_frame: 60  # reject detections that teleport (crowd, logos, players' heads)
+  max_interpolation_gap: 25  # frames
+
+pitch:                         # automatic pitch calibration (real metres, minimap, pitch heatmaps)
+  enabled: true
+  model: football-pitch-detection.pt   # Roboflow sports (MIT) 32-keypoint pitch model
+  imgsz: 640
+  conf: 0.3
+  keypoint_conf: 0.5
+  min_keypoints: 4
+  every_n_frames: 2              # pitch homography changes slowly; detecting every 2nd frame halves the cost
+  min_coverage: 0.4              # share of frames that must be calibrated, else fall back to pose scale
+  smoothing_window: 5            # temporal median over homographies to remove jitter
+
+presence:                      # who counts as a player (drops coaches, substitutes, stewards, crowd)
+  min_grass_fraction: 0.3        # share of grass pixels under a person's feet
+  min_track_on_grass: 0.6        # share of a track's frames standing on grass
+  pitch_margin_m: 2.0            # when calibrated: allowed distance outside the touchlines
+  min_track_on_pitch: 0.6
+
+teams:
+  n_teams: 2
+  min_track_observations: 8
+  max_samples_per_track: 40
+  outlier_distance_factor: 2.2   # tracks this far from both team colours -> referee / goalkeeper / other
+  switch_min_observations: 12    # a track whose shirt switches kit for this many frames is split (tracker ID swap)
+  goalkeepers_by_position: true  # detected goalkeepers wear their own kit: join the team whose players are nearest
+
+reid:                          # appearance re-identification for stable player IDs
+  enabled: true
+  model: yolo26s-reid.onnx       # Ultralytics YOLO26 person ReID (512-d embeddings, auto-downloaded)
+  sample_every_n_frames: 3       # embeddings stored for fragment matching (the tracker itself embeds every frame)
+  edge_embeddings: 8             # embeddings averaged at each end of a tracker fragment
+  max_link_distance: 0.35        # cosine distance gate when re-linking fragments (separates same-kit team-mates)
+  long_gap_seconds: 10.0         # a player leaving and re-entering the shot can be re-linked within this window...
+  long_gap_max_distance: 0.22    # ...only with a strong appearance match
+
+stitching:
+  max_gap_seconds: 3.0
+  max_speed_px_per_frame: 14.0   # in stabilised pixels; bounds how far a player can move during a gap
+  base_radius_px: 40.0
+  max_shirt_distance: 0.45       # distance between fragment shirt colour proportions (front vs back views differ)
+
+camera_motion:
+  enabled: true
+  max_corners: 300
+  quality_level: 0.01
+  min_distance: 10
+  min_inlier_ratio: 0.35         # below this the frame is treated as a scene cut (replay / camera switch)
+  downscale: 0.5
+
+geometry:
+  mode: auto                     # auto = manual calibration > pitch keypoints > pose scale | homography | pitch_keypoints | pose_scale
+  reference_height_m: 1.75       # assumed standing height used by the pose-scale estimator
+  pitch_length_m: 105.0
+  pitch_width_m: 68.0
+  calibration:                   # optional: 4+ points clicked on the FIRST processed frame
+    image_points: null           # e.g. [[x1, y1], [x2, y2], [x3, y3], [x4, y4]]
+    pitch_points: null           # matching metres on the pitch, e.g. [[0, 0], [16.5, 0], ...]
+
+kinematics:
+  smoothing_seconds: 0.6         # Savitzky-Golay window over positions (removes keypoint / homography jitter)
+  top_speed_window_s: 1.0        # top speed = best speed sustained for this long (single-frame spikes ignored)
+  max_speed_kmh: 38.0            # faster than Mbappé => tracking noise
+  max_gap_seconds: 0.6           # do not accumulate distance across longer gaps
+  speed_zones_kmh:               # FIFA EPTS-style intensity bands
+    walking: [0, 7]
+    jogging: [7, 15]
+    running: [15, 20]
+    high_speed: [20, 25]
+    sprinting: [25, 99]
+  sprint_threshold_kmh: 25.0
+  sprint_min_duration_s: 1.0
+  acceleration_threshold_ms2: 3.0
+  acceleration_min_duration_s: 0.5
+
+possession:
+  control_radius_body_heights: 0.55
+  min_consecutive_frames: 3
+
+pose_metrics:
+  min_speed_kmh_for_cadence: 9.0
+
+gemini:
+  enabled: true
+  model: gemini-3.7-flash
+  agentic: true                  # agentic video understanding (falls back to standard sampling if unsupported)
+  fallback_fps: 2.0
+  temperature: 0.2
+  file_poll_interval_s: 3.0
+  file_poll_timeout_s: 900.0
+  prompt_version: v2
+
+rendering:
+  skeleton_all_players: true
+  trail_length: 45
+  hud: true
+  minimap: true
+  label_track_ids: true
+  transcode_h264: true           # browser-playable mp4 via bundled ffmpeg
+
+report:
+  dpi: 150
+  open_when_done: true

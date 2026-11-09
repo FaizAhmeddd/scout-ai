@@ -1,0 +1,58 @@
+[project]
+name = "football-analysis-backend"
+version = "0.2.0"
+description = "Pose-based football player and team analysis engine with Gemini agentic video understanding"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.6",
+    "pydantic>=2.9.2",
+    "pydantic-settings>=2.5.2",
+    "python-multipart>=0.0.9",
+    "python-dotenv>=1.0.1",
+    "pyyaml>=6.0.2",
+    "boto3>=1.35.24",
+    "torch>=2.7.0",
+    "torchvision>=0.22.0",
+    "ultralytics>=8.3.200",
+    "lap>=0.5.12",
+    "opencv-python-headless>=4.10.0.84",
+    "numpy>=1.26.4",
+    "pandas>=2.2.0",
+    "scipy>=1.13.0",
+    "scikit-learn>=1.5.0",
+    "matplotlib>=3.9.0",
+    "mplsoccer>=1.4.0",
+    "google-genai>=2.34.0",
+    "rich>=13.9.0",
+    "jinja2>=3.1.4",
+    "imageio-ffmpeg>=0.5.1",
+    "pymongo>=4.10",
+    "pyjwt>=2.9",
+    "pwdlib[argon2]>=0.2.1",
+    "email-validator>=2.2",
+    "onnxruntime-gpu>=1.23,<1.24 ; sys_platform == 'linux' or sys_platform == 'win32'",  # last CUDA-12 line (matches torch cu128)
+    "onnxruntime>=1.20 ; sys_platform == 'darwin'",
+    "rfdetr>=1.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.3",
+    "httpx>=0.27.2",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu128", marker = "sys_platform == 'win32' or sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cu128", marker = "sys_platform == 'win32' or sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

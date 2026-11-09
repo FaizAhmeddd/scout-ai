@@ -1,0 +1,16 @@
+# BoT-SORT with appearance re-identification, tuned for broadcast football (Ultralytics 8.4 tracker).
+# ReID embeddings come from the YOLO26 ReID model configured under `reid:` in config.yaml; the `model`
+# path below is resolved at runtime. Global motion compensation follows the panning broadcast camera.
+
+tracker_type: botsort
+track_high_thresh: 0.3      # first-stage match threshold
+track_low_thresh: 0.1       # second-stage (low-confidence) recovery
+new_track_thresh: 0.35      # avoid spawning tracks from momentary false positives
+track_buffer: 90            # ~3.6 s at 25 fps: survive occlusions in duels / set pieces
+match_thresh: 0.85          # slightly permissive association for fast movement
+fuse_score: True
+gmc_method: sparseOptFlow   # compensate camera pans before associating
+proximity_thresh: 0.5       # only use appearance for spatially plausible pairs
+appearance_thresh: 0.8      # reject appearance matches below this similarity (prevents swaps between team-mates)
+with_reid: True
+model: yolo26s-reid.onnx

@@ -1,0 +1,12 @@
+# ByteTrack tuned for broadcast football (based on Ultralytics 8.4 defaults).
+# Players are small, fast and frequently occlude each other, so lost tracks are kept alive longer
+# and low-confidence detections are allowed to continue existing tracks. Remaining ID switches are
+# repaired afterwards by TrackStitcher.
+
+tracker_type: bytetrack
+track_high_thresh: 0.3      # default 0.25 — fewer crowd / bench false matches
+track_low_thresh: 0.1
+new_track_thresh: 0.35      # default 0.25 — avoid spawning tracks from momentary false positives
+track_buffer: 90            # default 30 — ~3.6 s at 25 fps survives occlusions in duels / set pieces
+match_thresh: 0.85          # default 0.8 — slightly more permissive association for fast movement
+fuse_score: True

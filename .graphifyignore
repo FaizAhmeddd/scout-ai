@@ -1,0 +1,13 @@
+# Keep the graph about our code, not dependencies, build output or runtime data.
+**/.venv/
+**/node_modules/
+**/dist/
+**/__pycache__/
+**/.pytest_cache/
+backend/.cache/
+backend/outputs/
+backend/data/
+backend/.env
+*.lock
+package-lock.json
+frontend/public/showcase/
